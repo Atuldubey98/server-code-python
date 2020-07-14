@@ -29,14 +29,7 @@ def messageEvent(message):
     emit(message['chatid'], message, broadcast = True)
 
 
-@socketio.on("online")
-def checkOnlineStatus(status):
-    print(status['status'])
-    print(status['chatid'])
-    print(status['client'])
-    
-    message = {"stat": "Online" , "clientname" : status['client']}
-    emit(status['chatid'] + "onlinestatus",message, broadcast = True)
+
 
 @app.route('/')
 def index():
