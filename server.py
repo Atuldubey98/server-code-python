@@ -4,6 +4,7 @@ import bcrypt
 from flask_socketio import SocketIO, send, emit
 
 app = Flask(__name__)
+
 app.config['SECRET_KEY'] = "kljdaskldas"
 socketio = SocketIO(app)
 client = MongoClient(
@@ -11,14 +12,21 @@ client = MongoClient(
 db = client.finalchatAPP
 users = db.userlist
 chatid = db.chatlist
+
 user = 0
 
 
-@socketio.on("message")
+@socketio.on("getMessage")
 def messageEvent(message):
-    print("Message Received" , message)
-    send(message, broadcast = True)
-
+    print(message['message'])
+    print(message['chatid'])
+    
+    # send(message, broadcast = True)
+    chatidcoll = chatid.find_one({"chatid" : message['chatid']})
+    chatidcoll['message'].append({"mess": message['message'],"sentby" :message['sentby']})
+    
+    chatid.update_one({"chatid" : message['chatid']},{"$set" :chatidcoll})
+    emit(message['chatid'], message, broadcast = True)
 
 
 @app.route('/')
@@ -71,13 +79,31 @@ def createchatID():
     chatitem = request_data['chatid']
     extractchatid = chatid.find_one({"chatid" : chatitem})
     if extractchatid is None:
-        chatid.insert_one({"chatid" : chatitem})
+        chatid.insert_one({"chatid" : chatitem, "message" : []})
         print("Chat id createchatitem", chatitem)
         return jsonify({"status" : "ok","mess" : "Chat id created" })
         
     return jsonify({"status" : "ok" , "mess" : "Chat id already exist"})
+@app.route("/getchatlist/<string:chatidentity>")
+def getchatlist(chatidentity):
+    chatList= []
+    for item in chatid.find({"chatid" : chatidentity}):
+        itemtoappend = {"chatid" : item['chatid'], "message" : item['message']}
+        chatList.append(itemtoappend)
+    if itemtoappend is None:
+        return jsonify({"status" : "ok" , "data" : {}, "mess" : "Nochat"})
+    return jsonify({"status" : "ok" , "data" : itemtoappend , "mess" : "working"})
 
 
+@app.route('/clients')
+def getclients():
+    clientList = []
+    for item in chatid.find():
+        itemtoadd = {"chatid" : item['chatid']}  
+        clientList.append(itemtoadd)
+    if itemtoadd is None:
+        return jsonify({"status" : "ok" , "data" : {}, "mess" : "Nochat"})
+    return jsonify({"status" : "ok" , "data" : clientList, "mess" : "working"})
 
 if __name__ == "__main__":
-    socketio.run(app,host= "0.0.0.0", debug = True)
+    socketio.run(app, host = "0.0.0.0", debug = True)
