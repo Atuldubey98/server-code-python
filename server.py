@@ -1,19 +1,30 @@
 from flask import Flask, jsonify, request
+from flask_mail import Mail, Message
 from pymongo import MongoClient
 import bcrypt
+import random
 from flask_socketio import SocketIO, send, emit
 
 app = Flask(__name__)
 
+app.config['MAIL_SERVER'] = "smtp.gmail.com"
+app.config['MAIL_PORT'] = "465"
+app.config['MAIL_USERNAME'] = "ad1923@srmist.edu.in"
+app.config['MAIL_PASSWORD'] = "New@1234"
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
 app.config['SECRET_KEY'] = "kljdaskldas"
+
+
 socketio = SocketIO(app)
+mail = Mail(app)
+
 client = MongoClient(
     "mongodb+srv://atuldubey:08091959@cluster0-isxbl.mongodb.net/<dbname>?retryWrites=true&w=majority")
 db = client.finalchatAPP
 users = db.userlist
 chatid = db.chatlist
 post = db.Posts
-user = 0
 
 
 @socketio.on("getMessage")
@@ -28,8 +39,6 @@ def messageEvent(message):
 
     chatid.update_one({"chatid": message['chatid']}, {"$set": chatidcoll})
     emit(message['chatid'], message, broadcast=True)
-
-
 
 
 @app.route('/')
@@ -65,6 +74,21 @@ def register():
         print("User Registered", username)
         return jsonify({"status": "OK", "mess": "usercreated", "user": username})
     return jsonify({"status": "notok", "mess": "username already exist", 'user': username})
+
+
+@app.route("/verifyemail", methods=["POST"])
+def verifyemail():
+    request_data = request.get_json()
+    username = request_data["username"]
+
+    n = random.randint(9999, 100000)
+    
+    msg = Message(subject="Verification Mail By ChatAPP",
+                  sender="ad1923@srmist.edu.in", recipients=[username])
+    msg.body = ("Your one time OTP is " + str(n))
+    mail.send(msg)
+
+    return(jsonify({"status": "ok", "mail": "sent"}))
 
 
 @app.route('/userlist')
